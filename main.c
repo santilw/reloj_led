@@ -39,53 +39,31 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
-uint8_t hora = 0;
-uint8_t minuto = 0;
-uint8_t segundos = 0;
 
-#define DEBOUNCE_TIME 50
-
-#define SET_MODE 0
-#define RUN_MODE 1
-
-uint32_t mode = RUN_MODE;
-uint32_t buttonPressedTime = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void update_LEDs(uint8_t hora, uint8_t minuto, uint8_t segundos) {
-    uint8_t hora_1 = hora / 10;
-    uint8_t hora_2 = hora % 10;
-    uint8_t minuto_1 = minuto / 10;
-    uint8_t minuto_2 = minuto % 10;
-    uint8_t segundos_1 = segundos / 10;
-    uint8_t segundos_2 = segundos % 10;
 
-    HAL_GPIO_WritePin(GPIOA, hora_1, hora_1);
-    HAL_GPIO_WritePin(GPIOA, hora_2, hora_2);
-    HAL_GPIO_WritePin(GPIOA, minuto_1, minuto_1);
-    HAL_GPIO_WritePin(GPIOA, minuto_2, minuto_2);
-    HAL_GPIO_WritePin(GPIOA, segundos_1, segundos_1);
-    HAL_GPIO_WritePin(GPIOA, segundos_2, segundos_2);
-}
+uint8_t hora = 1;
+uint8_t minuto = 0;
+uint8_t segundos = 0;
+uint8_t minutos = 0;
+uint32_t boton=0;
 
-void delay_ms(uint32_t ms) {
-    uint32_t i;
-    for(i=0; i<ms; i++) {
-        volatile uint32_t j = 1000;
-        while(j--);
-    }
-}
+void mostrar_hora();
+void mostrar_minuto();
 /* USER CODE END 0 */
 
 /**
@@ -116,7 +94,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim1);
 
   /* USER CODE END 2 */
 
@@ -124,105 +104,44 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	      if (HAL_GPIO_ReadPin(GPIOB, boton_Pin) == 1)
-	      {
-	        buttonPressedTime += 1;
-	      }
-	      else
-	          {
-	            if (buttonPressedTime > DEBOUNCE_TIME)
-	            {
-	              if (mode == RUN_MODE)
-	              {
-	                // Cambiar a modo SET
-	                HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_SET);
-	                HAL_Delay(300);
-	                HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                HAL_Delay(300);
-	                HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_SET);
-	                HAL_Delay(300);
-	                HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                HAL_Delay(300);
-	                mode = SET_MODE;
-	              }
-	              else if (mode == SET_MODE)
-	                     {
-	                       // Volver a modo RUN
-	                       HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                       HAL_Delay(2000);
-	                       mode = RUN_MODE;
-	                     }
-	                     buttonPressedTime = 0;
-	                   }
-	                 }
-	      if (mode == SET_MODE)
-	          {
-	            uint32_t min = minuto / 5;
-	            switch (buttonPressedTime)
-	            {
-	              case 0 ... DEBOUNCE_TIME - 1:
-	                break;
-	              case DEBOUNCE_TIME ... 5000 - 1:
-	                if (hora < 23)
-	                {
-	                  hora++;
-	                  HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_SET);
-	                  HAL_Delay(200);
-	                  HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                  HAL_Delay(200);
-	                }
-	                buttonPressedTime = 0;
-	                break;
-	              case 5000 ... 10000 - 1:
-	                        if (minuto < 11)
-	                        {
-	                          minuto++;
-	                          min = minuto * 5;
-	                          if (minuto == 11)
-	                          {
-	                            min = 0;
-	                            if (hora < 23)
-	                            {
-	                              hora++;
-	                              HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_SET);
-	                              HAL_Delay(200);
-	                              HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                              HAL_Delay(200);
-	                            }
-	                          }
-	                          else
-	                          {
-	                            if (minuto == 10)
-	                            {
-	                            	HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_SET);
-	                                HAL_Delay(200);
-	                            	HAL_GPIO_WritePin(GPIOA, hora_1_Pin, GPIO_PIN_RESET);
-	                            	HAL_Delay(200);
+	  minutos = round(minuto/5);
+	  segundos++;
+	  if(segundos == 60) {
+		  segundos = 0;
+	  	  minuto++;
+	  }
+	  if(minuto == 60) {
+		  minuto = 0;
+	  	  hora++;
+	  }
+	  if(hora == 24) {
+		  hora = 0;
+	  }
+	  if (HAL_GPIO_ReadPin(GPIOB,boton_Pin)==TIM1){
+	  	    mostrar_hora(hora);
+	  	   	HAL_Delay(200);
+	  	    mostrar_minuto(minuto);
+	  	    HAL_Delay(1500);
+	  }
+	  if(HAL_GPIO_ReadPin(GPIOB,boton_Pin)==5){
+		  HAL_GPIO_WritePin(GPIOB,buzzer_Pin,1);
+		  HAL_Delay(100);
+		  HAL_GPIO_WritePin(GPIOB,buzzer_Pin,0);
+		  HAL_Delay(100);
+		  HAL_GPIO_WritePin(GPIOB,buzzer_Pin,1);
+		  HAL_Delay(100);
+		  HAL_GPIO_WritePin(GPIOB,buzzer_Pin,0);
+		  HAL_Delay(100);
+	  }
 
-	  update_LEDs(hora, minuto, segundos);
 
-	  	        delay_ms(1000);
-
-	  	        segundos++;
-	  	        if(segundos == 60) {
-	  	            segundos = 0;
-	  	            minuto++;
-	  	        }
-	  	        if(minuto == 60) {
-	  	            minuto = 0;
-	  	            hora++;
-	  	        }
-	  	        if(hora == 24) {
-	  	            hora = 0;
-	  	        }
-  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
-	                        }}}}}
-  /* USER CODE END 3 */
 
+  /* USER CODE END 3 */
+}
 
 /**
   * @brief System Clock Configuration
@@ -241,13 +160,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 100;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 96;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -271,6 +189,52 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 50000-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 1000-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -285,27 +249,171 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, hora_1_Pin|hora_2_Pin|minuto_1_Pin|minuto_2_Pin
-                          |segundos_1_Pin|segundos_2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, led_1_Pin|led_2_Pin|led_3_Pin|led_4_Pin
+                          |led_5_Pin|led_6_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : hora_1_Pin hora_2_Pin minuto_1_Pin minuto_2_Pin
-                           segundos_1_Pin segundos_2_Pin */
-  GPIO_InitStruct.Pin = hora_1_Pin|hora_2_Pin|minuto_1_Pin|minuto_2_Pin
-                          |segundos_1_Pin|segundos_2_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, led_7_Pin|led_8_Pin|led_9_Pin|led_10_Pin
+                          |led_11_Pin|led_12_Pin|buzzer_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : led_1_Pin led_2_Pin led_3_Pin led_4_Pin
+                           led_5_Pin led_6_Pin */
+  GPIO_InitStruct.Pin = led_1_Pin|led_2_Pin|led_3_Pin|led_4_Pin
+                          |led_5_Pin|led_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : boton_Pin buzzer_Pin */
-  GPIO_InitStruct.Pin = boton_Pin|buzzer_Pin;
+  /*Configure GPIO pins : led_7_Pin led_8_Pin led_9_Pin led_10_Pin
+                           led_11_Pin led_12_Pin buzzer_Pin */
+  GPIO_InitStruct.Pin = led_7_Pin|led_8_Pin|led_9_Pin|led_10_Pin
+                          |led_11_Pin|led_12_Pin|buzzer_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : boton_Pin */
+  GPIO_InitStruct.Pin = boton_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(boton_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
+void mostrar_hora(int hor,TIM_HandleTypeDef *htim){
+
+	switch (hor){
+	             case 1:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_1_Pin);
+	                   }
+	                   break;
+	             case 2:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_2_Pin);
+	                   }
+	            break ;
+	             case 3:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_3_Pin);
+	                   }
+	            break ;
+	              case 4:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_4_Pin);
+	                   }
+	            break ;
+	              case 5:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_5_Pin);
+	                   }
+	            break ;
+	              case 6:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOA,led_6_Pin);
+	                   }
+	            break ;
+	              case 7:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOB,led_7_Pin);
+	                   }
+	            break ;
+	              case 8:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOB,led_8_Pin);
+	                   }
+	            break;
+	              case 9:
+	                   if (htim->Instance ==TIM1){
+	               		HAL_GPIO_TogglePin(GPIOB,led_9_Pin);
+	                   }
+	            break;
+	              case 10:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOB,led_10_Pin);
+	                   }
+	            break;
+	              case 11:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOB,led_11_Pin);
+	                   }
+	            break;
+	              case 12:
+	                   if (htim->Instance ==TIM1){
+	                	   HAL_GPIO_TogglePin(GPIOB,led_12_Pin);
+	                   }
+	            break;
+		}
+}
+void mostrar_minuto(int minut,TIM_HandleTypeDef *htim){
+		switch (minut){
+		             case 1:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_1_Pin);
+		                   }
+		                   break;
+		             case 2:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_2_Pin);
+		                   }
+		            break ;
+		             case 3:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_3_Pin);
+		                   }
+		            break ;
+		              case 4:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_4_Pin);
+		                   }
+		            break ;
+		              case 5:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_5_Pin);
+		                   }
+		            break ;
+		              case 6:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOA,led_6_Pin);
+		                   }
+		            break ;
+		              case 7:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOB,led_7_Pin);
+		                   }
+		            break ;
+		              case 8:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOB,led_8_Pin);
+		                   }
+		            break;
+		              case 9:
+		                   if (htim->Instance ==TIM1){
+		               		HAL_GPIO_TogglePin(GPIOB,led_9_Pin);
+		                   }
+		            break;
+		              case 10:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOB,led_10_Pin);
+		                   }
+		            break;
+		              case 11:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOB,led_11_Pin);
+		                   }
+		            break;
+		              case 12:
+		                   if (htim->Instance ==TIM1){
+		                	   HAL_GPIO_TogglePin(GPIOB,led_12_Pin);
+		                   }
+		            break;
+		}
+}
+
+
 
 /* USER CODE END 4 */
 
@@ -313,16 +421,15 @@ static void MX_GPIO_Init(void)
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
-{
+void Error_Handler(void){
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */
 }
+  /* USER CODE END Error_Handler_Debug */
 
 #ifdef  USE_FULL_ASSERT
 /**
